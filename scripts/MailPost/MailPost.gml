@@ -1,6 +1,9 @@
 /// Making event driven more easy to use
 /// Getting the best about DoLater and Observer Pattern from Juju and FriendlyCosmonault
 
+#macro MAILPOST_SAFE_CALLBACK_EXECUTION true
+#macro DELETE_SUBSCRIPTION_CASE_CANT_FIND_MAILPOST true
+
 global.__mp_all_mailposts = ds_list_create(); 
 global.__mp_subscriptions_by_message = ds_map_create(); // KEY (EVENT) : DS_LIST : __mailpost_listener_data
 global.__mp_remove_subscription_queue = ds_queue_create(); 
@@ -8,6 +11,12 @@ global.__mp_remove_subscription_queue = ds_queue_create();
 function MailPost(instance_or_struct_is_persistant = false, inst_struct_reference = other) constructor {
 	persistant = instance_or_struct_is_persistant;
 	scope_reference = inst_struct_reference;
+	scope_is_struct = !instance_exists(inst_struct_reference)
+	scope_weak_ref = noone;
+
+	if(scope_is_struct)
+		scope_weak_ref = weak_ref_create(scope_reference);
+	
 	mailpost_subscriptions = ds_list_create();
 	
 	/// @func add_subscription
@@ -24,7 +33,7 @@ function MailPost(instance_or_struct_is_persistant = false, inst_struct_referenc
 		repeat(ds_list_size(mailpost_subscriptions)){
 			_mailpost_data = mailpost_subscriptions[| _i++];
 			if(_mailpost_data.__event == event){
-				mailpost_enqueue_delete_subscriber(_mailpost_data);
+				__mailpost_enqueue_delete_subscriber(_mailpost_data);
 				break;
 			}
 		}
@@ -36,14 +45,13 @@ function MailPost(instance_or_struct_is_persistant = false, inst_struct_referenc
 	static delete_all_subscriptions	= function(){
 		var _i = 0; 
 		repeat(ds_list_size(mailpost_subscriptions)){
-			mailpost_enqueue_delete_subscriber(mailpost_subscriptions[| _i++]);
+			__mailpost_enqueue_delete_subscriber(mailpost_subscriptions[| _i++]);
 		}
 	}
 	
 	/// @func mail_clean_up
 	static mail_clean_up = function(){
-		var _index = ds_list_find_index(global.__mp_all_mailposts, self);
-		if(_index >= 0) ds_list_delete(global.__mp_all_mailposts, _index);
+		ds_list_delete_search(global.__mp_all_mailposts, self);
 		
 		delete_all_subscriptions();
 		ds_list_destroy(mailpost_subscriptions);
@@ -57,9 +65,50 @@ function MailPost(instance_or_struct_is_persistant = false, inst_struct_referenc
 	ds_list_add(global.__mp_all_mailposts, self);
 }
 
-/// @desc With this function you will delivery the given broadcast_data to all MailPost that waiting for the given event to Happen
+function mailpost_clean_all_but_persistant(){
+	var _mailpost, _i = 0; 
+	repeat(ds_list_size(global.__mp_all_mailposts)){
+		_mailpost = global.__mp_all_mailposts[| _i];
+		
+		if(!_mailpost.persistant){
+			_mailpost.__clean_up_force();
+			ds_list_delete(global.__mp_all_mailposts, _i);
+		}
+		else
+			_i++;
+	}
+	
+	__mailpost_force_delete_queue();
+}
+
+function mailpost_clean_all(){
+
+	var _mailpost;
+	repeat(ds_list_size(global.__mp_all_mailposts)){
+		_mailpost = global.__mp_all_mailposts[| 0];
+		_mailpost.__clean_up_force();
+		delete _mailpost;
+		ds_list_delete(global.__mp_all_mailposts, 0);
+	}
+	
+	__mailpost_force_delete_queue();
+
+	
+	var _arr = ds_map_keys_to_array(global.__mp_subscriptions_by_message),
+		_i = 0,
+		_list;
+	
+	repeat(array_length(_arr)){
+		_list = global.__mp_subscriptions_by_message[? _arr[_i++]];
+		ds_list_destroy(_list);
+	}
+	
+	ds_map_clear(global.__mp_subscriptions_by_message);
+
+} 
+
 function mailpost_delivery(event, broadcast_data = undefined){
-	mailpost_force_delete_queue();
+	__mailpost_force_delete_queue();
 	
 	var _subscribers = global.__mp_subscriptions_by_message[? event];
 	if(_subscribers == undefined) return;
@@ -68,14 +117,30 @@ function mailpost_delivery(event, broadcast_data = undefined){
 		_i = 0; 
 	
 	repeat(ds_list_size(_subscribers)){
+		var _return_data = false;
+		
 		_subscription_data = _subscribers[| _i++];
-		var _return_data = _subscription_data.__callback(broadcast_data, _subscription_data.__data);
-		if(_return_data == true) mailpost_enqueue_delete_subscriber(_subscription_data);
+
+		if(MAILPOST_SAFE_CALLBACK_EXECUTION){
+			var _scope = _subscription_data.__mailpost_reference.scope_reference;
+			if(instance_exists(_scope))
+				_return_data = _subscription_data.__callback(broadcast_data, _subscription_data.__data);
+			else if (weak_ref_alive(scope_weak_ref))
+				_return_data = _subscription_data.__callback(broadcast_data, _subscription_data.__data);
+			else if(DELETE_SUBSCRIPTION_CASE_CANT_FIND_MAILPOST)
+				_return_data = true;
+		}
+		else{
+			_return_data = _subscription_data.__callback(broadcast_data, _subscription_data.__data);
+		}
+		
+		if(_return_data == true) 
+			__mailpost_enqueue_delete_subscriber(_subscription_data);
 	}
 }
 
 
-
+/// INNER USAGE
 function __mailpost_subscription_data (event, callback_function, scope_reference, data, mailpost_reference) constructor{
 	__data = data;
 	__event = event;
@@ -92,13 +157,11 @@ function __mailpost_add_subscription_by_event(subscription_data){
 	ds_list_add(_list, subscription_data);
 }
 
-
-
-function mailpost_enqueue_delete_subscriber(maildata){
+function __mailpost_enqueue_delete_subscriber(maildata){
 	ds_queue_enqueue(global.__mp_remove_subscription_queue, maildata);	
 }
 
-function mailpost_force_delete_queue(){
+function __mailpost_force_delete_queue(){
 	var _mailpost_data = ds_queue_dequeue(global.__mp_remove_subscription_queue);
 	while(_mailpost_data != undefined){
 		
@@ -108,49 +171,10 @@ function mailpost_force_delete_queue(){
 		var _mailpost = _mailpost_data.__mailpost_reference;
 		ds_list_delete_search(_mailpost.mailpost_subscriptions, _mailpost_data);
 		
+		delete _mailpost_data;
 		_mailpost_data = ds_queue_dequeue(global.__mp_remove_subscription_queue);
 	}
 }
 
-#region HIDE THIS SHIT
-function mailpost_clean_all_but_persistant(){
-	mailpost_force_delete_queue();
 	
-	var _mailpost, _i = 0; 
-	repeat(ds_list_size(global.__mp_all_mailposts)){
-		_mailpost = global.__mp_all_mailposts[| _i];
-		
-		if(!_mailpost.persistant){
-			_mailpost.__clean_up_force();
-			ds_list_delete(global.__mp_all_mailposts, _i);
-		}
-		else
-			_i++;
-	}
-}	
-
-function mailpost_clean_all(){
-	mailpost_force_delete_queue();
-
-	var _mailpost;
-	repeat(ds_list_size(global.__mp_all_mailposts)){
-		_mailpost = global.__mp_all_mailposts[| 0];
-		_mailpost.__clean_up_force();
-		delete _mailpost;
-		ds_list_delete(global.__mp_all_mailposts, 0);
-	}
-	
-	
-	var _arr = ds_map_keys_to_array(global.__mp_subscriptions_by_message),
-		_i = 0,
-		_list;
-	
-	repeat(array_length(_arr)){
-		_list = global.__mp_subscriptions_by_message[? _arr[_i++]];
-		ds_list_destroy(_list);
-	}
-	
-	ds_map_clear(global.__mp_subscriptions_by_message);
-} 
-#endregion
 

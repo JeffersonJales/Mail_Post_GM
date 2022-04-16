@@ -29,14 +29,6 @@ player_moviment = function(){
 
 #endregion
 
-pause_game_function = function(){ 
-	sprite_index = Sprite_Player_pause;
-	player_last_state = player_state;
-	player_state = PLAYER_STATE.WAITING_RESUME;
-}
-resume_game_function = function(){
-	player_state = player_last_state;
-}
 
 listening = true;
 ignore_pause_event = function(){
@@ -51,6 +43,16 @@ ignore_pause_event = function(){
 		}
 		listening = !listening;
 	}
+}
+
+
+pause_game_function = function(){ 
+	sprite_index = Sprite_Player_pause;
+	player_last_state = player_state;
+	player_state = PLAYER_STATE.WAITING_RESUME;
+}
+resume_game_function = function(){
+	player_state = player_last_state;
 }
 
 my_mailpost = new MailPost();
