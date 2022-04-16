@@ -40,12 +40,12 @@ function MailPost(instance_or_struct_is_persistant = false, inst_struct_referenc
 		if(_index >= 0) ds_list_delete(global.__mp_all_mailposts, _index);
 		
 		delete_all_subscriptions();
-		ds_list_delete(mailpost_subscriptions);
+		ds_list_destroy(mailpost_subscriptions);
 	}
 	
 	static __clean_up_force = function(){
 		delete_all_subscriptions();
-		ds_list_delete(mailpost_subscriptions);
+		ds_list_destroy(mailpost_subscriptions);
 	}
 	
 	ds_list_add(global.__mp_all_mailposts, self);

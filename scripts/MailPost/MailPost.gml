@@ -10,9 +10,24 @@ global.__mp_remove_subscription_queue = ds_queue_create();
 
 
 function mailpost_delivery(event, broadcast_data = undefined){
+	mailpost_force_delete_queue();
+	
+	var _subscribers = global.__mp_subscriptions_by_message[? event];
+	if(_subscribers == undefined) return;
+	
+	var _subscription_data,
+		_i = 0; 
+	
+	repeat(ds_list_size(_subscribers)){
+		_subscription_data = _subscribers[| _i++];
+		var _return_data = _subscription_data.__callback(broadcast_data, _subscription_data.__data);
+		if(_return_data == true) mailpost_enqueue_delete_subscriber(_subscription_data);
+	}
 }
 
 function mailpost_clean_all_but_persistant(){
+	mailpost_force_delete_queue();
+	
 	var _mailpost, _i = 0; 
 	repeat(ds_list_size(global.__mp_all_mailposts)){
 		_mailpost = global.__mp_all_mailposts[| _i];
@@ -24,21 +39,38 @@ function mailpost_clean_all_but_persistant(){
 		else
 			_i++;
 	}
-	
-	mailpost_force_delete_queue();
 }	
 
 function mailpost_clean_all(){
+	mailpost_force_delete_queue();
+
 	var _mailpost;
 	repeat(ds_list_size(global.__mp_all_mailposts)){
 		_mailpost = global.__mp_all_mailposts[| 0];
 		_mailpost.__clean_up_force();
+		delete _mailpost;
 		ds_list_delete(global.__mp_all_mailposts, 0);
 	}
+	
+	
+	var _arr = ds_map_keys_to_array(global.__mp_subscriptions_by_message),
+		_i = 0,
+		_list;
+	
+	repeat(array_length(_arr)){
+		_list = global.__mp_subscriptions_by_message[? _arr[_i++]];
+		ds_list_destroy(_list);
+	}
+	
+	ds_map_clear(global.__mp_subscriptions_by_message);
 } 
 
+function mailpost_enqueue_delete_subscriber(maildata){
+	ds_queue_enqueue(global.__mp_remove_subscription_queue, maildata);	
+}
+
 function mailpost_force_delete_queue(){
-	var 
+	
 }
 
 function MailPost(instance_or_struct_is_persistant = false, inst_struct_reference = other) constructor {
@@ -60,7 +92,7 @@ function MailPost(instance_or_struct_is_persistant = false, inst_struct_referenc
 		repeat(ds_list_size(mailpost_subscriptions)){
 			_mailpost_data = mailpost_subscriptions[| _i++];
 			if(_mailpost_data.__event == event){
-				ds_queue_enqueue(global.__mp_remove_subscription_queue, _mailpost_data);	
+				mailpost_enqueue_delete_subscriber(_mailpost_data);
 				break;
 			}
 		}
@@ -71,7 +103,7 @@ function MailPost(instance_or_struct_is_persistant = false, inst_struct_referenc
 		var _mailpost_data, _i = 0; 
 		repeat(ds_list_size(mailpost_subscriptions)){
 			_mailpost_data = mailpost_subscriptions[| _i++];
-			ds_queue_enqueue(global.__mp_remove_subscription_queue, _mailpost_data);	
+			mailpost_enqueue_delete_subscriber(_mailpost_data);
 		}
 	}
 	
@@ -81,27 +113,30 @@ function MailPost(instance_or_struct_is_persistant = false, inst_struct_referenc
 		if(_index >= 0) ds_list_delete(global.__mp_all_mailposts, _index);
 		
 		delete_all_subscriptions();
-		ds_list_delete(mailpost_subscriptions);
+		ds_list_destroy(mailpost_subscriptions);
 	}
 	
 	static __clean_up_force = function(){
 		delete_all_subscriptions();
-		ds_list_delete(mailpost_subscriptions);
+		ds_list_destroy(mailpost_subscriptions);
 	}
 	
 	ds_list_add(global.__mp_all_mailposts, self);
 }
 
-function __mailpost_subscription_data (event, callback_function, scope_reference, data, mail_post_reference) constructor{
+function __mailpost_subscription_data (event, callback_function, scope_reference, data, mailpost_reference) constructor{
 	__data = data;
 	__event = event;
 	__callback = method(scope_reference, callback_function);
-	__mail_post_reference = mail_post_reference;
+	__mailpost_reference = mailpost_reference
 }
 
 function __mailpost_add_subscription_by_event(subscription_data){
 	var _list = global.__mp_subscriptions_by_message[? subscription_data.__event];
-	if(_list == undefined) _list = ds_list_create();
+	if(_list == undefined) {
+		_list = ds_list_create();
+		global.__mp_subscriptions_by_message[? subscription_data.__event] = _list;
+	}
 	ds_list_add(_list, subscription_data);
 }
 
