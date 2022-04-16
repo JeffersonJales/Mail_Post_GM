@@ -1,0 +1,2 @@
+enum GAME_EVENT { PAUSE, RESUME }
+

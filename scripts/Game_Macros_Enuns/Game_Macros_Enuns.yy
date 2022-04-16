@@ -2,11 +2,11 @@
   "isDnD": false,
   "isCompatibility": false,
   "parent": {
-    "name": "Mail Post",
-    "path": "folders/Mail Post.yy",
+    "name": "EXAMPLE",
+    "path": "folders/EXAMPLE.yy",
   },
   "resourceVersion": "1.0",
-  "name": "MailPost_Class",
+  "name": "Game_Macros_Enuns",
   "tags": [],
   "resourceType": "GMScript",
 }

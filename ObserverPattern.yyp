@@ -1,10 +1,13 @@
 {
   "resources": [
+    {"id":{"name":"Sprite_Player_pause","path":"sprites/Sprite_Player_pause/Sprite_Player_pause.yy",},"order":6,},
+    {"id":{"name":"Sprite_Player_idle","path":"sprites/Sprite_Player_idle/Sprite_Player_idle.yy",},"order":4,},
+    {"id":{"name":"MailPost_Utils","path":"scripts/MailPost_Utils/MailPost_Utils.yy",},"order":2,},
     {"id":{"name":"MailPost","path":"scripts/MailPost/MailPost.yy",},"order":1,},
-    {"id":{"name":"MailPost_Class","path":"scripts/MailPost_Class/MailPost_Class.yy",},"order":2,},
-    {"id":{"name":"MailPost_settings","path":"scripts/MailPost_settings/MailPost_settings.yy",},"order":0,},
     {"id":{"name":"obj_character","path":"objects/obj_character/obj_character.yy",},"order":0,},
+    {"id":{"name":"Sprite_Player_walk","path":"sprites/Sprite_Player_walk/Sprite_Player_walk.yy",},"order":5,},
     {"id":{"name":"obj_pause_game","path":"objects/obj_pause_game/obj_pause_game.yy",},"order":1,},
+    {"id":{"name":"Game_Macros_Enuns","path":"scripts/Game_Macros_Enuns/Game_Macros_Enuns.yy",},"order":3,},
     {"id":{"name":"Room1","path":"rooms/Room1/Room1.yy",},"order":2,},
   ],
   "Options": [
@@ -26,7 +29,6 @@
   "Folders": [
     {"folderPath":"folders/EXAMPLE.yy","order":4,"resourceVersion":"1.0","name":"EXAMPLE","tags":[],"resourceType":"GMFolder",},
     {"folderPath":"folders/Mail Post.yy","order":5,"resourceVersion":"1.0","name":"Mail Post","tags":[],"resourceType":"GMFolder",},
-    {"folderPath":"folders/Mail Post/Internal Usage.yy","order":1,"resourceVersion":"1.0","name":"Internal Usage","tags":[],"resourceType":"GMFolder",},
   ],
   "AudioGroups": [
     {"targets":-1,"resourceVersion":"1.3","name":"audiogroup_default","resourceType":"GMAudioGroup",},

@@ -6,7 +6,7 @@
     "path": "folders/Mail Post.yy",
   },
   "resourceVersion": "1.0",
-  "name": "MailPost_settings",
+  "name": "MailPost_Utils",
   "tags": [],
   "resourceType": "GMScript",
 }
