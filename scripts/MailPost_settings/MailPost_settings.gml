@@ -1,0 +1,2 @@
+#macro MAILPOST_SAFETY_FLAG true			
+#macro MAILPOST_DESTROY_SATELLITE false

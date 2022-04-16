@@ -1,0 +1,2 @@
+/// @description INIT
+pause = false;
