@@ -65,6 +65,35 @@ function MailPost(instance_or_struct_is_persistant = false, inst_struct_referenc
 	ds_list_add(global.__mp_all_mailposts, self);
 }
 
+function mailpost_delivery(event, broadcast_data = undefined){
+	__mailpost_force_delete_queue();
+	
+	var _subscribers = global.__mp_subscriptions_by_message[? event];
+	if(_subscribers == undefined) return;
+	
+	var _subscription_data,
+		_i = 0; 
+	
+	repeat(ds_list_size(_subscribers)){
+		var _return_data = false;
+		
+		_subscription_data = _subscribers[| _i++];
+
+		if(MAILPOST_SAFE_CALLBACK_EXECUTION){
+			if(instance_exists(_subscription_data.__mailpost_reference.scope_reference) || weak_ref_alive(_subscription_data.__mailpost_reference.scope_weak_ref))
+				_return_data = _subscription_data.__callback(broadcast_data, _subscription_data.__data);
+			else 
+				_return_data = DELETE_SUBSCRIPTION_CASE_CANT_FIND_MAILPOST;
+		}
+		else{
+			_return_data = _subscription_data.__callback(broadcast_data, _subscription_data.__data);
+		}
+		
+		if(_return_data == true) 
+			__mailpost_enqueue_delete_subscriber(_subscription_data);
+	}
+}
+
 function mailpost_clean_all_but_persistant(){
 	var _mailpost, _i = 0; 
 	repeat(ds_list_size(global.__mp_all_mailposts)){
@@ -106,39 +135,6 @@ function mailpost_clean_all(){
 	ds_map_clear(global.__mp_subscriptions_by_message);
 
 } 
-
-function mailpost_delivery(event, broadcast_data = undefined){
-	__mailpost_force_delete_queue();
-	
-	var _subscribers = global.__mp_subscriptions_by_message[? event];
-	if(_subscribers == undefined) return;
-	
-	var _subscription_data,
-		_i = 0; 
-	
-	repeat(ds_list_size(_subscribers)){
-		var _return_data = false;
-		
-		_subscription_data = _subscribers[| _i++];
-
-		if(MAILPOST_SAFE_CALLBACK_EXECUTION){
-			var _scope = _subscription_data.__mailpost_reference.scope_reference;
-			if(instance_exists(_scope))
-				_return_data = _subscription_data.__callback(broadcast_data, _subscription_data.__data);
-			else if (weak_ref_alive(scope_weak_ref))
-				_return_data = _subscription_data.__callback(broadcast_data, _subscription_data.__data);
-			else if(DELETE_SUBSCRIPTION_CASE_CANT_FIND_MAILPOST)
-				_return_data = true;
-		}
-		else{
-			_return_data = _subscription_data.__callback(broadcast_data, _subscription_data.__data);
-		}
-		
-		if(_return_data == true) 
-			__mailpost_enqueue_delete_subscriber(_subscription_data);
-	}
-}
-
 
 /// INNER USAGE
 function __mailpost_subscription_data (event, callback_function, scope_reference, data, mailpost_reference) constructor{
