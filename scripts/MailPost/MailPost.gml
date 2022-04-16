@@ -11,11 +11,7 @@ global.__mp_remove_subscription_queue = ds_queue_create();
 function MailPost(instance_or_struct_is_persistant = false, inst_struct_reference = other) constructor {
 	persistant = instance_or_struct_is_persistant;
 	scope_reference = inst_struct_reference;
-	scope_is_struct = !instance_exists(inst_struct_reference)
-	scope_weak_ref = noone;
-
-	if(scope_is_struct)
-		scope_weak_ref = weak_ref_create(scope_reference);
+	scope_weak_ref = weak_ref_create(scope_reference);
 	
 	mailpost_subscriptions = ds_list_create();
 	
@@ -80,7 +76,7 @@ function mailpost_delivery(event, broadcast_data = undefined){
 		_subscription_data = _subscribers[| _i++];
 
 		if(MAILPOST_SAFE_CALLBACK_EXECUTION){
-			if(instance_exists(_subscription_data.__mailpost_reference.scope_reference) || weak_ref_alive(_subscription_data.__mailpost_reference.scope_weak_ref))
+			if(weak_ref_alive(_subscription_data.__mailpost_reference.scope_weak_ref))
 				_return_data = _subscription_data.__callback(broadcast_data, _subscription_data.__data);
 			else 
 				_return_data = DELETE_SUBSCRIPTION_CASE_CANT_FIND_MAILPOST;

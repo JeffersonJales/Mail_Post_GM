@@ -17,3 +17,5 @@ switch(player_state){
 		break;
 }
 
+if(keyboard_check_pressed(vk_escape)) instance_destroy();
+
