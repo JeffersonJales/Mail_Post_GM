@@ -50,6 +50,7 @@ pause_game_function = function(){
 	sprite_index = Sprite_Player_pause;
 	player_last_state = player_state;
 	player_state = PLAYER_STATE.WAITING_RESUME;
+	return true;
 }
 resume_game_function = function(){
 	player_state = player_last_state;

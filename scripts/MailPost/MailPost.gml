@@ -45,14 +45,6 @@ function MailPost(instance_or_struct_is_persistant = false, inst_struct_referenc
 		}
 	}
 	
-	/// @func mail_clean_up
-	static mail_clean_up = function(){
-		ds_list_delete_search(global.__mp_all_mailposts, self);
-		
-		delete_all_subscriptions();
-		ds_list_destroy(mailpost_subscriptions);
-	}
-	
 	static __clean_up_force = function(){
 		delete_all_subscriptions();
 		ds_list_destroy(mailpost_subscriptions);
@@ -132,6 +124,13 @@ function mailpost_clean_all(){
 
 } 
 
+function mainpost_delete(mailpost_object){
+	if(instanceof(mailpost_object) != "MailPost") return;
+	
+	mailpost_object.__clean_up_force();
+	ds_list_delete_search(global.__mp_all_mailposts, mailpost_object);
+}
+
 /// INNER USAGE
 function __mailpost_subscription_data (event, callback_function, scope_reference, data, mailpost_reference) constructor{
 	__data = data;
@@ -167,6 +166,4 @@ function __mailpost_force_delete_queue(){
 		_mailpost_data = ds_queue_dequeue(global.__mp_remove_subscription_queue);
 	}
 }
-
-	
 
