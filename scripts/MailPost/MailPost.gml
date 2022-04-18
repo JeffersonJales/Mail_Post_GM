@@ -3,15 +3,16 @@
 
 #macro MAILPOST_SAFE_CALLBACK_EXECUTION true
 #macro DELETE_SUBSCRIPTION_CASE_CANT_FIND_MAILPOST true
+#macro MAILPOST_CLASS_NAME "MailPost"
 
 global.__mp_all_mailposts = ds_list_create(); 
-global.__mp_subscriptions_by_message = ds_map_create(); // KEY (EVENT) : DS_LIST : __mailpost_listener_data
+global.__mp_subscriptions_by_event = ds_map_create(); // KEY (EVENT) : DS_LIST : __mailpost_listener_data
 global.__mp_remove_subscription_queue = ds_queue_create(); 
 
 function MailPost(instance_or_struct_is_persistant = false, inst_struct_reference = other) constructor {
 	persistant = instance_or_struct_is_persistant;
 	scope_reference = inst_struct_reference;
-	scope_weak_ref = weak_ref_create(scope_reference);
+	scope_weak_ref = weak_ref_create(inst_struct_reference);
 	
 	mailpost_subscriptions = ds_list_create();
 	
@@ -56,7 +57,7 @@ function MailPost(instance_or_struct_is_persistant = false, inst_struct_referenc
 function mailpost_delivery(event, broadcast_data = undefined){
 	__mailpost_force_delete_queue();
 	
-	var _subscribers = global.__mp_subscriptions_by_message[? event];
+	var _subscribers = global.__mp_subscriptions_by_event[? event];
 	if(_subscribers == undefined) return;
 	
 	var _subscription_data,
@@ -111,21 +112,23 @@ function mailpost_clean_all(){
 	__mailpost_force_delete_queue();
 
 	
-	var _arr = ds_map_keys_to_array(global.__mp_subscriptions_by_message),
+	var _arr = ds_map_keys_to_array(global.__mp_subscriptions_by_event),
 		_i = 0,
 		_list;
 	
 	repeat(array_length(_arr)){
-		_list = global.__mp_subscriptions_by_message[? _arr[_i++]];
+		_list = global.__mp_subscriptions_by_event[? _arr[_i++]];
 		ds_list_destroy(_list);
 	}
 	
-	ds_map_clear(global.__mp_subscriptions_by_message);
+	ds_map_clear(global.__mp_subscriptions_by_event);
 
 } 
 
+/// @desc With this function you will delete the content of the mailpost object 
+/// @param {Struct.MailPost} mailpost_object	The mailpost struct reference
 function mainpost_delete(mailpost_object){
-	if(instanceof(mailpost_object) != "MailPost") return;
+	if(instanceof(mailpost_object) != MAILPOST_CLASS_NAME) return;
 	
 	mailpost_object.__clean_up_force();
 	ds_list_delete_search(global.__mp_all_mailposts, mailpost_object);
@@ -140,10 +143,10 @@ function __mailpost_subscription_data (event, callback_function, scope_reference
 }
 
 function __mailpost_add_subscription_by_event(subscription_data){
-	var _list = global.__mp_subscriptions_by_message[? subscription_data.__event];
+	var _list = global.__mp_subscriptions_by_event[? subscription_data.__event];
 	if(_list == undefined) {
 		_list = ds_list_create();
-		global.__mp_subscriptions_by_message[? subscription_data.__event] = _list;
+		global.__mp_subscriptions_by_event[? subscription_data.__event] = _list;
 	}
 	ds_list_add(_list, subscription_data);
 }
@@ -156,7 +159,7 @@ function __mailpost_force_delete_queue(){
 	var _mailpost_data = ds_queue_dequeue(global.__mp_remove_subscription_queue);
 	while(_mailpost_data != undefined){
 		
-		var _list = global.__mp_subscriptions_by_message[? _mailpost_data.__event];
+		var _list = global.__mp_subscriptions_by_event[? _mailpost_data.__event];
 		if(_list != undefined) ds_list_delete_search(_list, _mailpost_data);
 		
 		var _mailpost = _mailpost_data.__mailpost_reference;
